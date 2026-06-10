@@ -128,11 +128,8 @@ python -m unittest test_app.py
 ---
 
 ## 👥 Tim Pengembang (Kelompok Tubes)
-*   ALDI RULI WILIANTO (2510614081)
-*   MUHDAN FIRDAUS SALAM (2510614067)
-*   MUHAMAD ARJUL FUADI (2510614088)
 *   **Universitas Mayasari Bakti**
-*   Program Studi Teknik Informatika
+*   Program Studi Ilmu Komputer / Teknik Informatika
 *   Mata Kuliah: Algoritma & Pemrograman
 
 ---
