@@ -493,44 +493,59 @@ def add_user_points(session, user, amount, activity_name):
     session.add(ak)
     session.commit()
 
+# === MODUL 3: ARJUL (NIM: 2510614088) ===
+# Deskripsi Fungsi: Mengambil artikel edukasi bertema lingkungan secara dinamis menggunakan API Wikipedia Bahasa Indonesia.
+# Alur Algoritma:
+#   1. Bersihkan query dan satukan dengan kata kunci "sampah"
+#   2. Buat request HTTP ke endpoint API Wikipedia
+#   3. Parsing data JSON hasil response API
+#   4. Lakukan pembersihan tag HTML (regex) dari potongan artikel (snippet)
+#   5. Sediakan daftar artikel cadangan (fallback) jika terjadi kegagalan jaringan atau data kosong
 def search_web_articles(query):
-    """Searches Wikipedia API for environmental and waste management articles, avoiding ISP blocks."""
     import re
-    results = []
+    daftar_hasil_artikel = []
     
     try:
-        # Request search results from Indonesian Wikipedia
-        full_query = f"sampah {query}"
-        url = f"https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch={requests.utils.quote(full_query)}&format=json"
-        headers = {
+        # Konstruksi query gabungan
+        query_gabungan_lingkungan = f"sampah {query}"
+        url_endpoint_wikipedia = f"https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch={requests.utils.quote(query_gabungan_lingkungan)}&format=json"
+        header_request_agent = {
             "User-Agent": "MayasihEducationApp/1.0 (admin@mayasih.id)"
         }
-        r = requests.get(url, headers=headers, timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            search_items = data.get('query', {}).get('search', [])
-            for item in search_items[:5]:
-                title = item['title']
-                snippet_raw = item['snippet']
-                
-                # Clean up HTML tags (like <span class="searchmatch">) from snippet
-                snippet = re.sub(r'<[^>]+>', '', snippet_raw)
-                snippet = snippet.replace('&quot;', '"').strip()
-                if not snippet:
-                    snippet = "Informasi artikel tidak tersedia."
-                
-                link = f"https://id.wikipedia.org/wiki/{requests.utils.quote(title.replace(' ', '_'))}"
-                results.append({
-                    "title": title,
-                    "link": link,
-                    "snippet": snippet + "..."
-                })
-    except Exception as e:
-        print(f"Error searching Wikipedia: {e}")
         
-    # High-quality fallbacks in case of network issues so the UI never displays empty results
-    if not results:
-        fallbacks = [
+        # Eksekusi request API Wikipedia dengan batas waktu timeout 5 detik
+        response_wikipedia = requests.get(url_endpoint_wikipedia, headers=header_request_agent, timeout=5)
+        
+        if response_wikipedia.status_code == 200:
+            data_json_wikipedia = response_wikipedia.json()
+            list_item_pencarian = data_json_wikipedia.get('query', {}).get('search', [])
+            
+            # Membatasi hanya mengambil maksimal 5 artikel teratas
+            for item in list_item_pencarian[:5]:
+                judul_artikel = item['title']
+                cuplikan_teks_mentah = item['snippet']
+                
+                # Pembersihan tag HTML sisa dari snippet Wikipedia (misal tag highlight search)
+                cuplikan_bersih = re.sub(r'<[^>]+>', '', cuplikan_teks_mentah)
+                cuplikan_bersih = cuplikan_bersih.replace('&quot;', '"').strip()
+                
+                if not cuplikan_bersih:
+                    cuplikan_bersih = "Informasi artikel tidak tersedia."
+                
+                tautan_halaman_web = f"https://id.wikipedia.org/wiki/{requests.utils.quote(judul_artikel.replace(' ', '_'))}"
+                
+                daftar_hasil_artikel.append({
+                    "title": judul_artikel,
+                    "link": tautan_halaman_web,
+                    "snippet": cuplikan_bersih + "..."
+                })
+                
+    except Exception as error_pencarian:
+        print(f"Error searching Wikipedia: {error_pencarian}")
+        
+    # Validasi: Jika list kosong, berikan artikel cadangan (fallback) agar UI tidak kosong
+    if not daftar_hasil_artikel:
+        artikel_cadangan_fallback = [
             {
                 "title": f"Panduan Praktis Pengelolaan {query.capitalize()}",
                 "link": "https://id.wikipedia.org/wiki/Daur_ulang",
@@ -547,9 +562,9 @@ def search_web_articles(query):
                 "snippet": "Menerapkan gaya hidup bebas sampah dengan 5R (Refuse, Reduce, Reuse, Recycle, Rot) secara berkelanjutan di kalangan mahasiswa."
             }
         ]
-        results = fallbacks
+        daftar_hasil_artikel = artikel_cadangan_fallback
         
-    return results
+    return daftar_hasil_artikel
 
 
 # Session State Initialization
@@ -1855,19 +1870,21 @@ div[data-testid="stTabBar"] button[aria-selected="true"] {
 </div>
 """, unsafe_allow_html=True)
             
-            # Registration Flow for new Mahasiswa NIM
+            # === MODUL 1: MUHDAN FIRDAUS SALAM (NIM: 2510614067) ===
+            # Alur Registrasi Akun Mahasiswa Baru dengan NIM Terdeteksi
             if st.session_state.register_mode:
                 st.warning("⚠️ NIM BARU TERDETEKSI")
                 st.write(f"NIM **{st.session_state.temp_nim}** belum terdaftar di basis data Mayasih.")
                 st.write("Silakan masukkan nama lengkap Anda untuk melakukan registrasi mandiri:")
                 
+                # Input nama untuk registrasi mandiri
                 reg_name = st.text_input("Nama Lengkap", placeholder="Contoh: Ahmad Fauzi")
                 
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button("SIMPAN & MASUK", type="primary", use_container_width=True):
                         if reg_name.strip():
-                            # Create User
+                            # Daftarkan entri user baru ke database
                             new_user = User(
                                 nim=st.session_state.temp_nim,
                                 nama=reg_name.strip(),
@@ -1877,7 +1894,7 @@ div[data-testid="stTabBar"] button[aria-selected="true"] {
                             db_session.add(new_user)
                             db_session.commit()
                             
-                            # Set Login State
+                            # Set variabel state session login mahasiswa
                             st.session_state.user_id = new_user.id
                             st.session_state.role = 'user'
                             st.session_state.register_mode = False
@@ -1890,12 +1907,13 @@ div[data-testid="stTabBar"] button[aria-selected="true"] {
                             st.error("Nama lengkap wajib diisi.")
                 with c2:
                     if st.button("BATAL", use_container_width=True):
+                        # Membatalkan registrasi dan mengembalikan ke login page awal
                         st.session_state.register_mode = False
                         st.session_state.temp_nim = None
                         st.rerun()
                             
             else:
-                # Login Type Selection using tabs
+                # Navigasi opsi login menggunakan tab (Mahasiswa / Admin)
                 login_tabs = st.tabs(["MAHASISWA", "ADMINISTRATOR"])
                 
                 with login_tabs[0]:
@@ -1904,6 +1922,7 @@ div[data-testid="stTabBar"] button[aria-selected="true"] {
                     with c_lg_1:
                         if st.button("MASUK MAHASISWA", use_container_width=True, type="primary", key="mahasiswa_login_btn"):
                             if nim_input.strip():
+                                # Verifikasi NIM mahasiswa terdaftar di database
                                 user = db_session.query(User).filter(User.nim == nim_input.strip()).first()
                                 if user:
                                     st.session_state.user_id = user.id
@@ -1913,6 +1932,7 @@ div[data-testid="stTabBar"] button[aria-selected="true"] {
                                     time.sleep(1)
                                     st.rerun()
                                 else:
+                                    # Jika NIM tidak terdaftar, alihkan ke formulir registrasi mandiri
                                     st.session_state.temp_nim = nim_input.strip()
                                     st.session_state.register_mode = True
                                     st.rerun()
@@ -1929,6 +1949,7 @@ div[data-testid="stTabBar"] button[aria-selected="true"] {
                     c_ad_1, c_ad_2 = st.columns(2)
                     with c_ad_1:
                         if st.button("MASUK ADMIN", use_container_width=True, type="primary", key="admin_login_btn"):
+                            # Autentikasi Admin berdasarkan email dan password hash
                             admin = db_session.query(User).filter(User.email == email_input.strip(), User.role == 'admin').first()
                             if admin and check_password_hash(admin.password, pass_input.strip()):
                                 st.session_state.user_id = admin.id
@@ -2327,44 +2348,50 @@ label:not([class*="card-metric"] *),
                     """, unsafe_allow_html=True)
 
         # 2. STUDENT EDUKASI LINGKUNGAN
+        # === MODUL 3: ARJUL (NIM: 2510614088) ===
+        # Deskripsi Halaman: Menampilkan materi edukasi lingkungan hidup, baik lokal maupun pencarian eksternal via API.
         elif st.session_state.page == "Edukasi Lingkungan":
             st.title("📚 EDUKASI LINGKUNGAN")
             st.markdown("<p style='color: #8a8a8a;'>Membaca artikel edukasi lingkungan untuk menambah wawasan dan poin.</p>", unsafe_allow_html=True)
             
+            # Membuat tab menu materi lokal dan pencarian eksternal
             edu_tabs = st.tabs(["Materi Lokal Kampus", "Cari Edukasi dari Web (Google Search) 🔍"])
             
             with edu_tabs[0]:
-                articles = db_session.query(Edukasi).order_by(Edukasi.tanggal.desc()).all()
+                # Langkah 1: Query list artikel lokal dari tabel database 'edukasi'
+                daftar_artikel_lokal = db_session.query(Edukasi).order_by(Edukasi.tanggal.desc()).all()
                 
-                # Fetch what articles student read
-                read_activities = db_session.query(RiwayatPoin).filter(
+                # Langkah 2: Ambil histori riwayat membaca mahasiswa dari log RiwayatPoin
+                aktivitas_membaca_lokal = db_session.query(RiwayatPoin).filter(
                     RiwayatPoin.user_id == current_user.id,
                     RiwayatPoin.aktivitas.like('Membaca materi:%')
                 ).all()
-                read_titles = [rp.aktivitas.replace('Membaca materi: ', '') for rp in read_activities]
+                list_judul_telah_dibaca = [riwayat.aktivitas.replace('Membaca materi: ', '') for riwayat in aktivitas_membaca_lokal]
                 
-                if articles:
-                    for art in articles:
-                        is_read = art.judul in read_titles
-                        status_tag = "<span style='background-color: #E8F5EE; color: #1A9B4B; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; font-family: \"Inter\", sans-serif;'>SELESAI DIBACA</span>" if is_read else "<span style='background-color: #FFF3CD; color: #856404; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; font-family: \"Inter\", sans-serif;'>BELUM DIBACA</span>"
+                # Langkah 3: Tampilkan materi lokal yang tersedia ke dalam interface
+                if daftar_artikel_lokal:
+                    for artikel in daftar_artikel_lokal:
+                        status_artikel_terbaca = artikel.judul in list_judul_telah_dibaca
+                        tag_status_membaca = "<span style='background-color: #E8F5EE; color: #1A9B4B; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; font-family: \"Inter\", sans-serif;'>SELESAI DIBACA</span>" if status_artikel_terbaca else "<span style='background-color: #FFF3CD; color: #856404; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; font-family: \"Inter\", sans-serif;'>BELUM DIBACA</span>"
                         
                         st.markdown(f"""
                         <div class="brutalist-card">
-                            <span style="font-size: 11px; color: #1A9B4B; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; font-family: 'Inter', sans-serif;">{art.kategori}</span>
-                            <h3 style="margin: 6px 0 12px 0; color: #171A20; font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 600;">{art.judul}</h3>
-                            <p style="font-size: 14px; color: #393C41; line-height: 1.6; font-family: 'Inter', sans-serif;">{art.isi[:180]}...</p>
+                            <span style="font-size: 11px; color: #1A9B4B; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; font-family: 'Inter', sans-serif;">{artikel.kategori}</span>
+                            <h3 style="margin: 6px 0 12px 0; color: #171A20; font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 600;">{artikel.judul}</h3>
+                            <p style="font-size: 14px; color: #393C41; line-height: 1.6; font-family: 'Inter', sans-serif;">{artikel.isi[:180]}...</p>
                             <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #EEEEEE; padding-top: 12px;">
-                                <span style="font-size: 12px; color: #8E8E8E; font-weight: 400; font-family: 'Inter', sans-serif;">Diterbitkan: {art.tanggal.strftime('%d %b %Y')}</span>
-                                {status_tag}
+                                <span style="font-size: 12px; color: #8E8E8E; font-weight: 400; font-family: 'Inter', sans-serif;">Diterbitkan: {artikel.tanggal.strftime('%d %b %Y')}</span>
+                                {tag_status_membaca}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        with st.expander(f"Baca Selengkapnya: {art.judul}"):
-                            st.markdown(f"<div style='font-family: \"Inter\", sans-serif; font-size: 15px; line-height: 1.7; color: #393C41; padding: 10px 0;'>{art.isi}</div>", unsafe_allow_html=True)
-                            if not is_read:
-                                if st.button(f"Selesai Membaca & Klaim 10 Poin", key=f"read_btn_{art.id}", type="primary"):
-                                    add_user_points(db_session, current_user, 10, f"Membaca materi: {art.judul}")
+                        with st.expander(f"Baca Selengkapnya: {artikel.judul}"):
+                            st.markdown(f"<div style='font-family: \"Inter\", sans-serif; font-size: 15px; line-height: 1.7; color: #393C41; padding: 10px 0;'>{artikel.isi}</div>", unsafe_allow_html=True)
+                            if not status_artikel_terbaca:
+                                if st.button(f"Selesai Membaca & Klaim 10 Poin", key=f"read_btn_{artikel.id}", type="primary"):
+                                    # Tambah poin membaca 10 jika artikel baru
+                                    add_user_points(db_session, current_user, 10, f"Membaca materi: {artikel.judul}")
                                     st.success("Selamat! Anda mendapatkan 10 poin.")
                                     time.sleep(1)
                                     st.rerun()
@@ -2373,45 +2400,45 @@ label:not([class*="card-metric"] *),
                     
             with edu_tabs[1]:
                 st.write("Temukan artikel edukasi dari internet. Baca dan dapatkan **10 poin** untuk setiap artikel baru.")
-                query_search = st.text_input("Topik pencarian sampah / lingkungan", placeholder="contoh: daur ulang plastik, kompos daun kering")
+                kata_kunci_pencarian = st.text_input("Topik pencarian sampah / lingkungan", placeholder="contoh: daur ulang plastik, kompos daun kering")
                 
-                if query_search:
-                    st.write(f"Menampilkan hasil pencarian untuk: **{query_search}**")
+                if kata_kunci_pencarian:
+                    st.write(f"Menampilkan hasil pencarian untuk: **{kata_kunci_pencarian}**")
                     with st.spinner("Mengambil artikel dari internet..."):
-                        search_results = search_web_articles(query_search)
+                        koleksi_hasil_pencarian = search_web_articles(kata_kunci_pencarian)
                         
-                    if search_results:
-                        # Fetch reading history for web articles
-                        web_read_activities = db_session.query(RiwayatPoin).filter(
+                    if koleksi_hasil_pencarian:
+                        # Langkah 4: Ambil riwayat membaca materi dari web
+                        aktivitas_membaca_web = db_session.query(RiwayatPoin).filter(
                             RiwayatPoin.user_id == current_user.id,
                             RiwayatPoin.aktivitas.like('Membaca materi web:%')
                         ).all()
-                        read_web_titles = [rp.aktivitas.replace('Membaca materi web: ', '') for rp in web_read_activities]
+                        list_judul_web_terbaca = [riwayat.aktivitas.replace('Membaca materi web: ', '') for riwayat in aktivitas_membaca_web]
                         
-                        for idx, res in enumerate(search_results):
-                            title = res['title']
-                            link = res['link']
-                            snippet = res['snippet']
+                        for indeks_hasil, hasil_item in enumerate(koleksi_hasil_pencarian):
+                            judul_web = hasil_item['title']
+                            tautan_web = hasil_item['link']
+                            ringkasan_web = hasil_item['snippet']
                             
-                            is_read = title in read_web_titles
-                            status_text = "💚 Dibaca (+10 Poin)" if is_read else "📖 Belum Dibaca"
+                            status_web_terbaca = judul_web in list_judul_web_terbaca
                             
                             st.markdown(f"""
                             <div style="padding: 18px 22px; background-color: #FFFFFF; border: 1px solid #EEEEEE; margin-bottom: 0.8rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.01);">
-                                <a href="{link}" target="_blank" style="font-size: 16px; color: #3E6AE1; font-family: 'Inter', sans-serif; font-weight: 600; text-decoration: none;">{title}</a>
-                                <p style="font-size: 12px; color: #8E8E8E; margin: 6px 0; font-weight: 400; font-family: 'Inter', sans-serif;">URL: {link}</p>
-                                <p style="font-size: 14px; color: #393C41; line-height: 1.6; margin: 0; font-family: 'Inter', sans-serif;">{snippet}</p>
+                                <a href="{tautan_web}" target="_blank" style="font-size: 16px; color: #3E6AE1; font-family: 'Inter', sans-serif; font-weight: 600; text-decoration: none;">{judul_web}</a>
+                                <p style="font-size: 12px; color: #8E8E8E; margin: 6px 0; font-weight: 400; font-family: 'Inter', sans-serif;">URL: {tautan_web}</p>
+                                <p style="font-size: 14px; color: #393C41; line-height: 1.6; margin: 0; font-family: 'Inter', sans-serif;">{ringkasan_web}</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
                             c1, c2 = st.columns([1, 4])
                             with c1:
-                                if is_read:
+                                if status_web_terbaca:
                                     st.info("Sudah diklaim")
                                 else:
-                                    if st.button(f"Klaim Poin Membaca", key=f"claim_web_{idx}", type="primary"):
-                                        add_user_points(db_session, current_user, 10, f"Membaca materi web: {title}")
-                                        st.success(f"Poin berhasil diklaim untuk artikel: {title}")
+                                    if st.button(f"Klaim Poin Membaca", key=f"claim_web_{indeks_hasil}", type="primary"):
+                                        # Tambahkan poin membaca materi eksternal 10 poin
+                                        add_user_points(db_session, current_user, 10, f"Membaca materi web: {judul_web}")
+                                        st.success(f"Poin berhasil diklaim untuk artikel: {judul_web}")
                                         time.sleep(1)
                                         st.rerun()
                             st.write("")
@@ -2546,59 +2573,66 @@ label:not([class*="card-metric"] *),
                     st.info("Kuis interaktif belum tersedia saat ini.")
 
         # 4. STUDENT LAPOR SAMPAH
+        # === MODUL 2: ALDI (NIM: 2510614081) ===
         elif st.session_state.page == "Lapor Sampah":
             st.title("📸 LAPOR SAMPAH")
             st.markdown("<p style='color: #8a8a8a;'>Laporkan sampah berserakan di lingkungan kampus. Dapatkan **100 poin** instan!</p>", unsafe_allow_html=True)
             
             st.write("Pilih salah satu metode untuk mengambil foto sampah:")
             
-            # Image Input Mode selection
-            input_mode = st.radio("Metode Foto", ["Gunakan Kamera Perangkat 📸", "Unggah File Gambar 📁"])
+            # pilih pake kamera hp atau upload file
+            modeInput = st.radio("Metode Foto", ["Gunakan Kamera Perangkat 📸", "Unggah File Gambar 📁"])
             
-            captured_file = None
-            if input_mode == "Gunakan Kamera Perangkat 📸":
-                captured_file = st.camera_input("Ambil Foto Sampah Secara Langsung")
+            fileFoto = None
+            if modeInput == "Gunakan Kamera Perangkat 📸":
+                fileFoto = st.camera_input("Ambil Foto Sampah Secara Langsung")
             else:
-                captured_file = st.file_uploader("Pilih file foto sampah", type=["png", "jpg", "jpeg"])
+                fileFoto = st.file_uploader("Pilih file foto sampah", type=["png", "jpg", "jpeg"])
                 
-            lokasi = st.text_input("Lokasi Sampah", placeholder="contoh: Depan Tangga Lt.2 Fasilkom")
-            kategori = st.selectbox("Kategori Sampah", ["Plastik", "Organik", "Kertas", "Logam", "Lainnya"])
-            deskripsi = st.text_area("Deskripsi Singkat", placeholder="Sebutkan detail atau kendala sampah di lokasi tersebut")
+            inputLokasi = st.text_input("Lokasi Sampah", placeholder="contoh: Depan Tangga Lt.2 Fasilkom")
+            inputKategori = st.selectbox("Kategori Sampah", ["Plastik", "Organik", "Kertas", "Logam", "Lainnya"])
+            inputDeskripsi = st.text_area("Deskripsi Singkat", placeholder="Sebutkan detail atau kendala sampah di lokasi tersebut")
             
+            # tombol submit laporan
             if st.button("KIRIM LAPORAN SAMPAH", type="primary"):
-                if not captured_file or not lokasi.strip() or not deskripsi.strip():
+                if not fileFoto or not inputLokasi.strip() or not inputDeskripsi.strip():
                     st.error("Semua field laporan wajib diisi, termasuk foto sampah.")
                 else:
-                    # Save image file to static/uploads
-                    os.makedirs(os.path.join('static', 'uploads'), exist_ok=True)
-                    
-                    filename = f"{current_user.nim}_{int(time.time())}_{captured_file.name if hasattr(captured_file, 'name') and captured_file.name else 'cam.jpg'}"
-                    filepath = os.path.join('static', 'uploads', filename)
-                    
-                    # Write file
-                    with open(filepath, "wb") as f:
-                        f.write(captured_file.read())
+                    try:
+                        # bikin folder uploads klo belom ada
+                        os.makedirs(os.path.join('static', 'uploads'), exist_ok=True)
                         
-                    # Create database Laporan record
-                    laporan = Laporan(
-                        user_id=current_user.id,
-                        foto=filename,
-                        lokasi=lokasi.strip(),
-                        kategori_sampah=kategori,
-                        deskripsi=deskripsi.strip(),
-                        status='Menunggu Verifikasi',
-                        tanggal=datetime.utcnow()
-                    )
-                    db_session.add(laporan)
-                    db_session.commit()
-                    
-                    # Reward user 100 points
-                    add_user_points(db_session, current_user, 100, f"Mengirim laporan: {lokasi.strip()}")
-                    
-                    st.success("Laporan sampah berhasil dikirim! Anda memperoleh 100 poin.")
-                    time.sleep(1)
-                    st.session_state.page = "Dashboard"
-                    st.rerun()
+                        namaFile = f"{current_user.nim}_{int(time.time())}_{fileFoto.name if hasattr(fileFoto, 'name') and fileFoto.name else 'cam.jpg'}"
+                        pathUpload = os.path.join('static', 'uploads', namaFile)
+                        
+                        # tulis file foto ke disk
+                        with open(pathUpload, "wb") as f_out:
+                            f_out.write(fileFoto.read())
+                            
+                        # simpan data laporan baru ke DB
+                        lapor_baru = Laporan(
+                            user_id=current_user.id,
+                            foto=namaFile,
+                            lokasi=inputLokasi.strip(),
+                            kategori_sampah=inputKategori,
+                            deskripsi=inputDeskripsi.strip(),
+                            status='Menunggu Verifikasi',
+                            tanggal=datetime.utcnow()
+                        )
+                        db_session.add(lapor_baru)
+                        db_session.commit()
+                        
+                        # auto tambah poin 100 ke mahasiswa
+                        add_user_points(db_session, current_user, 100, f"Mengirim laporan: {inputLokasi.strip()}")
+                        print(f"Laporan baru sukses disimpan dari user NIM: {current_user.nim}")
+                        
+                        st.success("Laporan sampah berhasil dikirim! Anda memperoleh 100 poin.")
+                        time.sleep(1)
+                        st.session_state.page = "Dashboard"
+                        st.rerun()
+                    except Exception as error_lapor:
+                        print("Error simpan laporan:", error_lapor)
+                        st.error("Terjadi kesalahan sistem saat mengirim laporan.")
 
         # 5. STUDENT REWARD CENTER
         elif st.session_state.page == "Reward Center":
@@ -2829,63 +2863,66 @@ label:not([class*="card-metric"] *),
                     """, unsafe_allow_html=True)
 
         # 2. ADMIN VERIFIKASI LAPORAN
+        # === MODUL 2: ALDI (NIM: 2510614081) ===
         elif st.session_state.page == "Verifikasi Laporan":
             st.title("📋 VERIFIKASI LAPORAN MAHASISWA")
             st.markdown("<p style='color: #8a8a8a;'>Verifikasi pengaduan sampah yang dilaporkan mahasiswa dan setujui penambahan poin.</p>", unsafe_allow_html=True)
             
-            reports = db_session.query(Laporan).order_by(Laporan.tanggal.desc()).all()
+            # ambil semua laporan dari database
+            listLaporan = db_session.query(Laporan).order_by(Laporan.tanggal.desc()).all()
             
-            if reports:
-                for rep in reports:
-                    reporter = db_session.query(User).get(rep.user_id)
-                    reporter_name = reporter.nama if reporter else "Unknown"
+            if listLaporan:
+                for lap in listLaporan:
+                    reporter_user = db_session.query(User).get(lap.user_id)
+                    namaReporter = reporter_user.nama if reporter_user else "Unknown"
                     
-                    bg_color = "#E8F5EE" if rep.status == 'Selesai' else "#FFF8E1" if rep.status == 'Diproses' else "#FFEBEE"
-                    border_color = "#1A9B4B" if rep.status == 'Selesai' else "#FFB300" if rep.status == 'Diproses' else "#E53935"
-                    status_text_color = "#1A9B4B" if rep.status == 'Selesai' else "#FFB300" if rep.status == 'Diproses' else "#E53935"
+                    # set warna background kartu status
+                    warnaBg = "#E8F5EE" if lap.status == 'Selesai' else "#FFF8E1" if lap.status == 'Diproses' else "#FFEBEE"
+                    warnaBorder = "#1A9B4B" if lap.status == 'Selesai' else "#FFB300" if lap.status == 'Diproses' else "#E53935"
+                    warnaTeksStatus = "#1A9B4B" if lap.status == 'Selesai' else "#FFB300" if lap.status == 'Diproses' else "#E53935"
                     
                     st.markdown(f"""
-                    <div style="padding: 20px; background-color: {bg_color}; border: 1px solid {border_color}; border-radius: 12px; margin-bottom: 1rem; font-family: 'Inter', sans-serif;">
-                        <h4 style="margin: 0; color: #171A20; font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600;">Lokasi: {rep.lokasi}</h4>
-                        <div style="font-size: 12px; color: #5C5E62; margin: 6px 0; font-family: 'Inter', sans-serif;">Dilaporkan oleh: <b>{reporter_name}</b> ({reporter.nim if reporter else ''}) | Kategori: <b>{rep.kategori_sampah}</b></div>
-                        <p style="font-size: 14px; color: #393C41; margin-top: 10px; line-height: 1.5; font-family: 'Inter', sans-serif;">Deskripsi: {rep.deskripsi}</p>
-                        <div style="font-size: 13px; font-weight: 700; color: {status_text_color}; margin-top: 12px; font-family: 'Inter', sans-serif;">Status: {rep.status.upper()}</div>
+                    <div style="padding: 20px; background-color: {warnaBg}; border: 1px solid {warnaBorder}; border-radius: 12px; margin-bottom: 1rem; font-family: 'Inter', sans-serif;">
+                        <h4 style="margin: 0; color: #171A20; font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600;">Lokasi: {lap.lokasi}</h4>
+                        <div style="font-size: 12px; color: #5C5E62; margin: 6px 0; font-family: 'Inter', sans-serif;">Dilaporkan oleh: <b>{namaReporter}</b> ({reporter_user.nim if reporter_user else ''}) | Kategori: <b>{lap.kategori_sampah}</b></div>
+                        <p style="font-size: 14px; color: #393C41; margin-top: 10px; line-height: 1.5; font-family: 'Inter', sans-serif;">Deskripsi: {lap.deskripsi}</p>
+                        <div style="font-size: 13px; font-weight: 700; color: {warnaTeksStatus}; margin-top: 12px; font-family: 'Inter', sans-serif;">Status: {lap.status.upper()}</div>
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Display report image
-                    img_path = os.path.join('static', 'uploads', rep.foto)
-                    if os.path.exists(img_path):
-                        st.image(img_path, width=300, caption=f"Foto Sampah - {rep.lokasi}")
+                    # tampilin foto sampah klo ada di folder uploads
+                    pathFoto = os.path.join('static', 'uploads', lap.foto)
+                    if os.path.exists(pathFoto):
+                        st.image(pathFoto, width=300, caption=f"Foto Sampah - {lap.lokasi}")
                     else:
                         st.info("File gambar laporan tidak ditemukan.")
                         
-                    # Verification control buttons
-                    if rep.status != 'Selesai':
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            if rep.status == 'Menunggu Verifikasi':
-                                if st.button(f"Proses Laporan #{rep.id}", key=f"proc_btn_{rep.id}", type="secondary"):
-                                    rep.status = 'Diproses'
+                    # tombol-tombol verifikasi buat admin
+                    if lap.status != 'Selesai':
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if lap.status == 'Menunggu Verifikasi':
+                                if st.button(f"Proses Laporan #{lap.id}", key=f"proc_btn_{lap.id}", type="secondary"):
+                                    lap.status = 'Diproses'
                                     db_session.commit()
-                                    st.success(f"Status laporan #{rep.id} diubah menjadi Diproses.")
+                                    st.success(f"Status laporan #{lap.id} diubah menjadi Diproses.")
                                     time.sleep(0.5)
                                     st.rerun()
-                        with c2:
-                            if st.button(f"Selesaikan & Beri 150 Poin #{rep.id}", key=f"done_btn_{rep.id}", type="primary"):
-                                old_status = rep.status
-                                rep.status = 'Selesai'
+                        with col2:
+                            if st.button(f"Selesaikan & Beri 150 Poin #{lap.id}", key=f"done_btn_{lap.id}", type="primary"):
+                                statusLama = lap.status
+                                lap.status = 'Selesai'
                                 
-                                # Reward reporter 150 points for verifikasi
-                                if old_status != 'Selesai' and reporter:
-                                    activity_name = f"Laporan diverifikasi: {rep.lokasi}"
-                                    # Ensure no duplicate reward logs for this report verification
-                                    already_rewarded = db_session.query(RiwayatPoin).filter_by(user_id=reporter.id, aktivitas=activity_name).first() is not None
-                                    if not already_rewarded:
-                                        add_user_points(db_session, reporter, 150, activity_name)
+                                # kasih poin 150 ke pelapor
+                                if statusLama != 'Selesai' and reporter_user:
+                                    namaAktivitas = f"Laporan diverifikasi: {lap.lokasi}"
+                                    sudahDapatPoin = db_session.query(RiwayatPoin).filter_by(user_id=reporter_user.id, aktivitas=namaAktivitas).first() is not None
+                                    if not sudahDapatPoin:
+                                        add_user_points(db_session, reporter_user, 150, namaAktivitas)
+                                        print(f"Poin verifikasi 150 sukses diberikan ke NIM: {reporter_user.nim}")
                                         
                                 db_session.commit()
-                                st.success(f"Status laporan #{rep.id} dinyatakan Selesai. Reporter mendapatkan 150 poin tambahan!")
+                                st.success(f"Status laporan #{lap.id} dinyatakan Selesai. Reporter mendapatkan 150 poin tambahan!")
                                 time.sleep(0.5)
                                 st.rerun()
                     st.write("---")

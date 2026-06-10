@@ -127,10 +127,19 @@ python -m unittest test_app.py
 
 ---
 
-## 👥 Tim Pengembang (Kelompok Tubes)
+## 👥 Tim Pengembang & Pembagian Tugas (Kelompok Tubes)
+
 *   **Universitas Mayasari Bakti**
 *   Program Studi Ilmu Komputer / Teknik Informatika
 *   Mata Kuliah: Algoritma & Pemrograman
+
+Berikut adalah susunan anggota kelompok beserta pembagian tanggung jawab pengembangan fitur aplikasi Mayasih:
+
+| Anggota Kelompok | Peran & Modul yang Dikembangkan | Rincian Tugas |
+| :--- | :--- | :--- |
+| **Muhdan Firdaus Salam**<br>NIM: 2510614067 | **Penanggung Jawab Modul 1**<br>*(Autentikasi, Dashboard, & Leaderboard)* | - Implementasi sistem Login & Register berbasis NIM mahasiswa.<br>- Desain & integrasi Halaman Dashboard Mahasiswa.<br>- Pembuatan fitur Leaderboard (papan peringkat) real-time.<br>- Pengamanan enkripsi password menggunakan hashing password (werkzeug security). |
+| **Aldi**<br>NIM: 2510614081 | **Penanggung Jawab Modul 2**<br>*(Sistem Pelaporan Sampah & Admin)* | - Desain formulir Laporan Sampah (unggah foto, deskripsi, lokasi, kategori).<br>- Implementasi dashboard admin untuk validasi laporan.<br>- Logika perubahan status laporan (*Menunggu Verifikasi* $\rightarrow$ *Diproses* $\rightarrow$ *Selesai*).<br>- Integrasi penambahan poin apresiasi secara otomatis setelah laporan diverifikasi oleh Admin. |
+| **Arjul**<br>NIM: 2510614088 | **Penanggung Jawab Modul 3**<br>*(Edukasi, Kuis Poin, & Katalog Reward)* | - Pembuatan Halaman Edukasi & integrasi pencarian artikel via API Wikipedia Indonesia.<br>- Implementasi sistem Kuis Interaktif (logika validasi jawaban benar/salah).<br>- Logika pencegahan pengerjaan kuis ganda untuk menghindari manipulasi poin.<br>- Pembuatan modul Katalog Penukaran Poin dengan berbagai item hadiah (reward). |
 
 ---
 🌿 *Mari bersama kita wujudkan kampus bebas sampah dan ramah lingkungan. **#ubahjadikebaikan**!*
